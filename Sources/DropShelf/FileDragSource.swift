@@ -134,8 +134,10 @@ final class DragSourceHostView: NSView, NSDraggingSource {
                          sourceOperationMaskFor context: NSDraggingContext) -> NSDragOperation {
         switch context {
         case .outsideApplication:
-            // Dragging to Finder / other apps: copy by default, ⌘ = move.
-            return NSEvent.modifierFlags.contains(.command) ? .move : .copy
+            // Advertise capabilities, not the current keyboard state. Finder
+            // chooses move on the same volume, copy across volumes, and honors
+            // Option (copy) / Command (move), including keys pressed mid-drag.
+            return [.copy, .move]
         case .withinApplication:
             // Dragging around inside our own app (e.g. over the shelf itself)
             // must do nothing — no copy, so items never get duplicated.

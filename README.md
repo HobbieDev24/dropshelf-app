@@ -12,7 +12,7 @@ DropShelf is a small Mac menu bar app for collecting files from different folder
 
 ## Install
 
-1. Download **DropShelf-1.0.3-arm64.dmg**.
+1. Download **DropShelf-1.0.4-arm64.dmg**.
 2. Open it and drag **DropShelf** onto **Applications**.
 3. Open DropShelf from Applications. Look for its menu bar icon; it has no Dock icon.
 
@@ -32,7 +32,7 @@ You can disable the shake gesture with **Show drop zones when dragging files** i
 - Click items to select them. Use **Command-click** to toggle selection, **Shift-click** for a range, and **Command-A** to select all.
 - Press **Space** for Quick Look. Right-click to open, reveal in Finder, copy, or remove an item.
 - The arrow menu offers sharing, copying, moving, grid/list view, and pinning. Actions use selected items, or all items if nothing is selected.
-- Drag files into Finder to copy them; hold **Command** to move. **Move to…** moves the originals without overwriting existing files.
+- Drag files or folders into Finder to move them on the same drive. Hold **Option** to copy or **Command** to request a move across drives. **Move to…** moves the originals without overwriting existing files.
 
 ## Gotchas
 
