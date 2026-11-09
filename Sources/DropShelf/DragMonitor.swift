@@ -1,20 +1,14 @@
 import Foundation
 import AppKit
 
-/// Detects a system-wide file drag and shows "drop zone" targets near the
-/// screen edge. When the user drops files on a zone, the callback fires with
-/// the landing point and the dragged file URLs.
-///
-/// macOS does not expose global drag *contents* to other apps for security
-/// reasons, so we use a two-part strategy:
-///   1. While the left mouse button is down and moving, we show drop zones.
-///   2. The drop zones themselves are real drag-and-drop NSWindows that accept
-///      `.fileURL`, so when the user releases over one we read the pasteboard.
+/// Shows a drop target after a shake during a fresh file-drag session.
 final class DragMonitor {
     typealias Handler = (_ screenPoint: CGPoint, _ urls: [URL]) -> Void
 
     private let handler: Handler
+    private var globalMouseDownMonitor: Any?
     private var globalMouseDragMonitor: Any?
+    private var fileDrag = FileDragSession()
     private var globalMouseUpMonitor: Any?
     private var zoneController: DropZoneController?
     private var isShowingZones = false
@@ -28,13 +22,22 @@ final class DragMonitor {
     }
 
     func start() {
-        guard Preferences.shared.dropZonesEnabled else { return }
+        guard Preferences.shared.dropZonesEnabled, globalMouseDownMonitor == nil else { return }
+
+        // The drag pasteboard survives mouse-up. Snapshot its generation before
+        // this gesture so old file data cannot turn a selection rectangle into
+        // a file drag.
+        globalMouseDownMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown]) { [weak self] _ in
+            self?.fileDrag.begin(changeCount: NSPasteboard(name: .drag).changeCount)
+            self?.shake.reset()
+        }
 
         // Detect dragging: left mouse dragged anywhere on screen.
         globalMouseDragMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDragged]) { [weak self] event in
             self?.handleDrag(event)
         }
         globalMouseUpMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseUp]) { [weak self] _ in
+            self?.fileDrag.end()
             self?.shake.reset()
             // Delay hide slightly so a drop onto a zone window can register.
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
@@ -44,6 +47,9 @@ final class DragMonitor {
     }
 
     func stop() {
+        if let m = globalMouseDownMonitor { NSEvent.removeMonitor(m) }
+        globalMouseDownMonitor = nil
+        fileDrag.end()
         if let m = globalMouseDragMonitor { NSEvent.removeMonitor(m) }
         if let m = globalMouseUpMonitor { NSEvent.removeMonitor(m) }
         globalMouseDragMonitor = nil
@@ -64,29 +70,12 @@ final class DragMonitor {
             // Only summon the zones when the active drag actually carries files.
             // A text/object selection in another app (e.g. Affinity) doesn't put
             // file URLs on the drag pasteboard, so we ignore it.
-            guard Self.dragHasFiles() else {
+            guard fileDrag.containsFiles(on: NSPasteboard(name: .drag)) else {
                 shake.reset()
                 return
             }
             showZones()
         }
-    }
-
-    /// True when the current system drag pasteboard contains at least one file URL.
-    private static func dragHasFiles() -> Bool {
-        let pb = NSPasteboard(name: .drag)
-        guard let types = pb.types else { return false }
-        // Fast path: the fileURL/filenames types are present.
-        if types.contains(.fileURL) || types.contains(NSPasteboard.PasteboardType("NSFilenamesPboardType")) {
-            return true
-        }
-        // Fallback: actually try to read file URLs.
-        let opts: [NSPasteboard.ReadingOptionKey: Any] = [.urlReadingFileURLsOnly: true]
-        if let urls = pb.readObjects(forClasses: [NSURL.self], options: opts) as? [URL],
-           urls.contains(where: { $0.isFileURL }) {
-            return true
-        }
-        return false
     }
 
     private func showZones() {
@@ -99,6 +88,36 @@ final class DragMonitor {
         guard isShowingZones else { return }
         isShowingZones = false
         zoneController?.hide()
+    }
+}
+
+/// A file drag must publish a new payload after the current mouse-down.
+/// Merely finding file types on the persistent drag pasteboard is insufficient.
+struct FileDragSession {
+    private var initialChangeCount: Int?
+
+    mutating func begin(changeCount: Int) {
+        initialChangeCount = changeCount
+    }
+
+    mutating func end() {
+        initialChangeCount = nil
+    }
+
+    func containsFiles(on pasteboard: NSPasteboard) -> Bool {
+        guard let initialChangeCount,
+              pasteboard.changeCount != initialChangeCount else { return false }
+        return !Self.fileURLs(on: pasteboard).isEmpty
+    }
+
+    static func fileURLs(on pasteboard: NSPasteboard) -> [URL] {
+        let options: [NSPasteboard.ReadingOptionKey: Any] = [.urlReadingFileURLsOnly: true]
+        let urls = pasteboard.readObjects(forClasses: [NSURL.self], options: options) as? [URL] ?? []
+        return urls.filter {
+            $0.isFileURL &&
+            !["webloc", "inetloc", "url"].contains($0.pathExtension.lowercased()) &&
+            FileManager.default.fileExists(atPath: $0.path)
+        }
     }
 }
 

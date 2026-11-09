@@ -12,7 +12,7 @@ DropShelf is a small Mac menu bar app for collecting files from different folder
 
 ## Install
 
-1. Download **DropShelf-1.0.4-arm64.dmg**.
+1. Download **DropShelf-1.0.5-arm64.dmg**.
 2. Open it and drag **DropShelf** onto **Applications**.
 3. Open DropShelf from Applications. Look for its menu bar icon; it has no Dock icon.
 

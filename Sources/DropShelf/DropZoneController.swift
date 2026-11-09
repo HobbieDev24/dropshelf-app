@@ -225,8 +225,8 @@ final class DropZoneView: NSView {
     // MARK: Dragging destination
 
     override func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation {
-        isHighlighted = true
-        return .copy
+        isHighlighted = !FileDragSession.fileURLs(on: sender.draggingPasteboard).isEmpty
+        return isHighlighted ? .copy : []
     }
 
     override func draggingExited(_ sender: NSDraggingInfo?) {
@@ -234,14 +234,13 @@ final class DropZoneView: NSView {
     }
 
     override func prepareForDragOperation(_ sender: NSDraggingInfo) -> Bool {
-        true
+        !FileDragSession.fileURLs(on: sender.draggingPasteboard).isEmpty
     }
 
     override func performDragOperation(_ sender: NSDraggingInfo) -> Bool {
         isHighlighted = false
-        let pb = sender.draggingPasteboard
-        guard let objs = pb.readObjects(forClasses: [NSURL.self], options: [:]) as? [URL],
-              !objs.isEmpty else {
+        let objs = FileDragSession.fileURLs(on: sender.draggingPasteboard)
+        guard !objs.isEmpty else {
             return false
         }
         // Screen point of the drop.
