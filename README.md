@@ -1,3 +1,6 @@
+<img width="1440" height="800" alt="dropshelf_screenshot" src="https://github.com/user-attachments/assets/db684b4c-d216-4af2-a288-7d0a389c2951" />
+
+
 # DropShelf
 
 DropShelf is a small Mac menu bar app for collecting files from different folders. Drag them into another app, move them together, or share them with AirDrop.
